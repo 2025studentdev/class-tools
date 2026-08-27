@@ -7,18 +7,51 @@
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{background:#fff;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:16px}
-        .wrap{width:100%;max-width:560px}
-        .card{background:#fff;border:1px solid #1FCCCD;padding:14px 16px;margin-bottom:10px}
-        .card:last-child{margin-bottom:0}
+        .wrap{width:100%;max-width:600px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+        .card{background:#fff;border:1px solid #1FCCCD;padding:12px 14px;min-width:0}
         .label{font-size:12px;font-weight:700;color:#1FCCCD;letter-spacing:.5px;margin-bottom:6px;text-transform:uppercase}
-        .course-text{font-size:clamp(12px,3vw,16px);font-weight:500;color:#111;white-space:nowrap;overflow:visible}
-        .countdown-row{display:flex;gap:4px;flex-wrap:nowrap}
-        .cd-item{flex:1;text-align:center;padding:4px 0}
-        .cd-num{font-size:clamp(18px,5vw,28px);font-weight:700;color:#1FCCCD;font-variant-numeric:tabular-nums;line-height:1.1}
-        .cd-label{font-size:clamp(8px,2vw,11px);color:#555;font-weight:600;letter-spacing:.3px}
-        .clock-time{font-size:clamp(26px,7vw,40px);font-weight:700;color:#111;font-variant-numeric:tabular-nums;letter-spacing:1px}
-        .clock-sub{font-size:clamp(13px,3vw,16px);color:#333;font-weight:500;margin-top:4px}
+        .course-text{font-size:clamp(11px,2.8vw,15px);font-weight:500;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .countdown-row{display:flex;gap:2px}
+        .cd-item{flex:1;text-align:center;padding:2px 0}
+        .cd-num{font-size:clamp(16px,4.5vw,24px);font-weight:700;color:#1FCCCD;font-variant-numeric:tabular-nums;line-height:1.1}
+        .cd-label{font-size:clamp(8px,1.8vw,10px);color:#555;font-weight:600;letter-spacing:.3px}
+        .clock-time{font-size:clamp(22px,6vw,34px);font-weight:700;color:#111;font-variant-numeric:tabular-nums;letter-spacing:1px}
+        .clock-sub{font-size:clamp(11px,2.5vw,14px);color:#333;font-weight:500;margin-top:4px}
         .clock-sub span{color:#1FCCCD;font-weight:700}
+        .card.clock-card{display:flex;flex-direction:column;justify-content:center;align-items:center}
+        /* 井字棋 */
+        .ttt-wrap{position:relative;width:100%;aspect-ratio:1;margin-top:4px}
+        /* 增加外边框，使外框与内部网格线粗细一致（2px） */
+        .ttt-grid{
+            display:grid;
+            grid-template-columns:repeat(3,1fr);
+            grid-template-rows:repeat(3,1fr);
+            gap:2px;
+            background:#000;
+            width:100%;
+            height:100%;
+            border:2px solid #000; /* 新增：外边框与内部间隙等宽 */
+        }
+        .ttt-cell{background:#fff;border:none;font-size:clamp(18px,5vw,28px);font-weight:700;color:#000;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .1s}
+        .ttt-cell:active{background:#f0f0f0}
+        .ttt-cell.disabled{pointer-events:none}
+        .ttt-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+        /* 胜利线样式：统一粗细为2px，并避免因缩放导致粗细变化 */
+        .ttt-svg line{
+            stroke:#1FCCCD;
+            stroke-width:2;               /* 从3px改为2px，与网格线一致 */
+            stroke-linecap:square;
+            transition:stroke-dashoffset .5s ease;
+            vector-effect:non-scaling-stroke;  /* 新增：保持线条粗细不随容器缩放而改变 */
+        }
+        .ttt-reset{display:block;margin-top:4px;text-align:right;font-size:10px;color:#ccc;background:none;border:none;cursor:pointer;padding:0}
+        .more{position:fixed;bottom:8px;right:12px;font-size:10px;color:#f2f2f2;text-decoration:none}
+        /* 磨砂玻璃遮罩 */
+        .ttt-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,0.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;flex-direction:column;justify-content:center;align-items:center;border-radius:4px;opacity:0;pointer-events:none;transition:opacity .3s ease}
+        .ttt-overlay.show{opacity:1;pointer-events:auto}
+        .ttt-overlay-text{font-size:clamp(16px,4vw,24px);font-weight:700;color:#1FCCCD;margin-bottom:10px;text-shadow:0 1px 3px rgba(0,0,0,0.08)}
+        .ttt-overlay-btn{font-size:12px;color:#555;background:rgba(31,204,205,0.12);border:1px solid #1FCCCD;padding:4px 16px;border-radius:20px;cursor:pointer;transition:all .2s}
+        .ttt-overlay-btn:hover{background:#1FCCCD;color:#fff}
     </style>
 </head>
 <body>
@@ -36,14 +69,27 @@
             <div class="cd-item"><div class="cd-num" id="cdS">--</div><div class="cd-label">SECONDS</div></div>
         </div>
     </div>
-    <div class="card">
+    <div class="card clock-card">
         <div class="label">时钟</div>
         <div class="clock-time" id="clk">--:--:--</div>
         <div class="clock-sub" id="clkSub">--</div>
     </div>
+    <div class="card">
+        <div class="label">井字棋</div>
+        <div class="ttt-wrap" id="tttWrap">
+            <div class="ttt-grid" id="tttGrid"></div>
+            <svg class="ttt-svg" id="tttSvg"></svg>
+            <div class="ttt-overlay" id="tttOverlay">
+                <div class="ttt-overlay-text" id="tttOverlayText"></div>
+                <button class="ttt-overlay-btn" id="tttOverlayBtn">再来一局</button>
+            </div>
+        </div>
+        <button class="ttt-reset" id="tttReset">重置</button>
+    </div>
 </div>
+<a class="more" href="/creative">more</a>
 <script>
-    // ========== 课程配置（每个星期一行，直接修改字符串即可）==========
+    // ========== 课程配置 ==========
     const C = {
         0: '今天放假',
         1: '语 数 英 历 政 物 化 地 生 体',
@@ -53,44 +99,222 @@
         5: '语 数 英 历 政 物 化 地 生 体',
         6: '今天放假'
     };
-    // 高考目标时间（安徽2029年高考首日）
     const G = new Date('2029-06-07T00:00:00');
     const W = ['日','一','二','三','四','五','六'];
     const $ = id => document.getElementById(id);
     const pad = n => n<10?'0'+n:''+n;
 
+    // ========== 时钟与倒计时 ==========
     function tick(){
         const n = new Date();
         const d = n.getDay();
-// 今日课程直接使用字符串
-        $('course').textContent = C[d];
-// 时钟
+        $('course').textContent = C[d] || '--';
         $('clk').textContent = pad(n.getHours()) + ':' + pad(n.getMinutes()) + ':' + pad(n.getSeconds());
-        const sub = (d===0 || d===6)
-            ? '<span>放假了</span>'
-            : '星期' + W[d] + ' · 距周末还有<span>' + (6-d) + '</span>天';
+        const sub = (d===0 || d===6) ? '<span>放假了</span>' : '星期' + W[d] + ' · 距周末还有<span>' + (6-d) + '</span>天';
         $('clkSub').innerHTML = sub;
-// 高考倒计时
-        const diff = G - n;
-        if (diff > 0) {
-            const s = Math.floor(diff/1000);
-            const D = Math.floor(s/86400);
-            const H = Math.floor(s%86400/3600);
-            const M = Math.floor(s%3600/60);
-            const S = s%60;
-            $('cdD').textContent = D;
-            $('cdH').textContent = pad(H);
-            $('cdM').textContent = pad(M);
-            $('cdS').textContent = pad(S);
-        } else {
-            $('cdD').textContent = '0';
-            $('cdH').textContent = '00';
-            $('cdM').textContent = '00';
-            $('cdS').textContent = '00';
-        }
+        const diff = Math.max(0, G - n);
+        const s = Math.floor(diff/1000);
+        $('cdD').textContent = Math.floor(s/86400);
+        $('cdH').textContent = pad(Math.floor(s%86400/3600));
+        $('cdM').textContent = pad(Math.floor(s%3600/60));
+        $('cdS').textContent = pad(s%60);
     }
     tick();
     setInterval(tick,1000);
+
+    // ========== 井字棋（人机对战） ==========
+    const grid = $('tttGrid');
+    const svg = $('tttSvg');
+    const resetBtn = $('tttReset');
+    const overlay = $('tttOverlay');
+    const overlayText = $('tttOverlayText');
+    const overlayBtn = $('tttOverlayBtn');
+
+    let board = Array(9).fill(null);
+    let current = 'X';
+    let gameOver = false;
+    let aiThinking = false;
+    let overlayTimeout = null; // 用于延迟显示遮罩的定时器
+
+    function createGrid(){
+        grid.innerHTML = '';
+        for(let i=0;i<9;i++){
+            const cell = document.createElement('button');
+            cell.className = 'ttt-cell';
+            cell.dataset.idx = i;
+            grid.appendChild(cell);
+        }
+    }
+    createGrid();
+
+    const winLines = [
+        [0,1,2],[3,4,5],[6,7,8],
+        [0,3,6],[1,4,7],[2,5,8],
+        [0,4,8],[2,4,6]
+    ];
+
+    function checkWin(){
+        for(const line of winLines){
+            const [a,b,c] = line;
+            if(board[a] && board[a]===board[b] && board[a]===board[c]){
+                return line;
+            }
+        }
+        return null;
+    }
+
+    function drawWinLine(line){
+        const cells = grid.children;
+        const rect0 = cells[line[0]].getBoundingClientRect();
+        const rect2 = cells[line[2]].getBoundingClientRect();
+        const wrapRect = $('tttWrap').getBoundingClientRect();
+        const x1 = ((rect0.left + rect0.width/2) - wrapRect.left) / wrapRect.width * 100;
+        const y1 = ((rect0.top + rect0.height/2) - wrapRect.top) / wrapRect.height * 100;
+        const x2 = ((rect2.left + rect2.width/2) - wrapRect.left) / wrapRect.width * 100;
+        const y2 = ((rect2.top + rect2.height/2) - wrapRect.top) / wrapRect.height * 100;
+        const pxLen = Math.sqrt(Math.pow(rect2.left+rect2.width/2-(rect0.left+rect0.width/2),2)+Math.pow(rect2.top+rect2.height/2-(rect0.top+rect0.height/2),2));
+        const lineEl = document.createElementNS('http://www.w3.org/2000/svg','line');
+        lineEl.setAttribute('x1', x1+'%');
+        lineEl.setAttribute('y1', y1+'%');
+        lineEl.setAttribute('x2', x2+'%');
+        lineEl.setAttribute('y2', y2+'%');
+        lineEl.style.strokeDasharray = pxLen;
+        lineEl.style.strokeDashoffset = pxLen;
+        svg.appendChild(lineEl);
+        requestAnimationFrame(()=>{
+            lineEl.style.strokeDashoffset = '0';
+        });
+    }
+
+    function showOverlay(text){
+        overlayText.textContent = text;
+        overlay.classList.add('show');
+    }
+
+    function hideOverlay(){
+        overlay.classList.remove('show');
+        // 清除可能存在的延迟显示定时器
+        if(overlayTimeout){
+            clearTimeout(overlayTimeout);
+            overlayTimeout = null;
+        }
+    }
+
+    function resetGame(){
+        hideOverlay();
+        gameOver = false;
+        aiThinking = false;
+        board = Array(9).fill(null);
+        current = 'X';
+        [...grid.children].forEach(cell => {
+            cell.textContent = '';
+            cell.classList.remove('disabled');
+        });
+        svg.innerHTML = '';
+    }
+
+    function endGame(result){
+        gameOver = true;
+        [...grid.children].forEach(cell => cell.classList.add('disabled'));
+        const text = result === 'win' ? '你赢了！' : (result === 'lose' ? '你输了' : '平局');
+        // 如果是胜利或失败（有划线动画），等待动画完成（0.5s）后再显示遮罩
+        if(result === 'win' || result === 'lose'){
+            overlayTimeout = setTimeout(() => {
+                showOverlay(text);
+                overlayTimeout = null;
+            }, 500); // 与CSS transition时长一致
+        } else {
+            showOverlay(text); // 平局直接显示
+        }
+    }
+
+    // AI 落子
+    function aiMove(){
+        if(gameOver) return;
+        aiThinking = true;
+        // 修改AI延迟：400~800ms，既不太快也不太慢
+        const delay = 400 + Math.random() * 400;
+
+        setTimeout(()=>{
+            if(gameOver) return;
+            let move = -1;
+
+            // 1. 电脑能赢 → 赢
+            for(const line of winLines){
+                const [a,b,c] = line;
+                const cells = [board[a], board[b], board[c]];
+                if(cells.filter(v=>v==='O').length===2){
+                    const emptyIdx = cells.indexOf(null);
+                    if(emptyIdx !== -1){ move = line[emptyIdx]; break; }
+                }
+            }
+            // 2. 玩家能赢 → 堵
+            if(move === -1){
+                for(const line of winLines){
+                    const [a,b,c] = line;
+                    const cells = [board[a], board[b], board[c]];
+                    if(cells.filter(v=>v==='X').length===2){
+                        const emptyIdx = cells.indexOf(null);
+                        if(emptyIdx !== -1){ move = line[emptyIdx]; break; }
+                    }
+                }
+            }
+            // 3. 占中心
+            if(move === -1 && board[4] === null) move = 4;
+            // 4. 占角
+            if(move === -1){
+                const corners = [0,2,6,8].filter(i=>board[i]===null);
+                if(corners.length) move = corners[Math.floor(Math.random()*corners.length)];
+            }
+            // 5. 随机空位
+            if(move === -1){
+                const empties = board.map((v,i)=>v===null?i:null).filter(v=>v!==null);
+                move = empties[Math.floor(Math.random()*empties.length)];
+            }
+            if(move === -1) return;
+
+            board[move] = 'O';
+            const cell = grid.children[move];
+            cell.textContent = 'O';
+            cell.classList.add('disabled');
+
+            const win = checkWin();
+            if(win){
+                drawWinLine(win);
+                endGame('lose');
+            } else if(board.every(v=>v)){
+                endGame('draw');
+            } else {
+                current = 'X';
+                aiThinking = false;
+            }
+        }, delay);
+    }
+
+    grid.addEventListener('click', e=>{
+        if(gameOver || aiThinking) return;
+        const cell = e.target.closest('.ttt-cell');
+        if(!cell || !grid.contains(cell)) return;
+        const idx = Number(cell.dataset.idx);
+        if(isNaN(idx) || board[idx]) return;
+
+        board[idx] = 'X';
+        cell.textContent = 'X';
+
+        const win = checkWin();
+        if(win){
+            drawWinLine(win);
+            endGame('win');
+        } else if(board.every(v=>v)){
+            endGame('draw');
+        } else {
+            current = 'O';
+            aiMove();
+        }
+    });
+
+    resetBtn.addEventListener('click', resetGame);
+    overlayBtn.addEventListener('click', resetGame);
 </script>
 </body>
 </html>
