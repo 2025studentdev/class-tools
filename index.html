@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>面板</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{background:#fff;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:16px}
+        .wrap{width:100%;max-width:560px}
+        .card{background:#fff;border:1px solid #1FCCCD;padding:14px 16px;margin-bottom:10px}
+        .card:last-child{margin-bottom:0}
+        .label{font-size:12px;font-weight:700;color:#1FCCCD;letter-spacing:.5px;margin-bottom:6px;text-transform:uppercase}
+        .course-text{font-size:clamp(12px,3vw,16px);font-weight:500;color:#111;white-space:nowrap;overflow:visible}
+        .countdown-row{display:flex;gap:4px;flex-wrap:nowrap}
+        .cd-item{flex:1;text-align:center;padding:4px 0}
+        .cd-num{font-size:clamp(18px,5vw,28px);font-weight:700;color:#1FCCCD;font-variant-numeric:tabular-nums;line-height:1.1}
+        .cd-label{font-size:clamp(8px,2vw,11px);color:#555;font-weight:600;letter-spacing:.3px}
+        .clock-time{font-size:clamp(26px,7vw,40px);font-weight:700;color:#111;font-variant-numeric:tabular-nums;letter-spacing:1px}
+        .clock-sub{font-size:clamp(13px,3vw,16px);color:#333;font-weight:500;margin-top:4px}
+        .clock-sub span{color:#1FCCCD;font-weight:700}
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="card">
+        <div class="label">今日课程</div>
+        <div class="course-text" id="course">--</div>
+    </div>
+    <div class="card">
+        <div class="label">高考倒计时</div>
+        <div class="countdown-row" id="cd">
+            <div class="cd-item"><div class="cd-num" id="cdD">--</div><div class="cd-label">DAYS</div></div>
+            <div class="cd-item"><div class="cd-num" id="cdH">--</div><div class="cd-label">HOURS</div></div>
+            <div class="cd-item"><div class="cd-num" id="cdM">--</div><div class="cd-label">MINUTES</div></div>
+            <div class="cd-item"><div class="cd-num" id="cdS">--</div><div class="cd-label">SECONDS</div></div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="label">时钟</div>
+        <div class="clock-time" id="clk">--:--:--</div>
+        <div class="clock-sub" id="clkSub">--</div>
+    </div>
+</div>
+<script>
+    // ========== 课程配置（每个星期一行，直接修改字符串即可）==========
+    const C = {
+        0: '今天放假',
+        1: '语 数 英 历 政 物 化 地 生 体',
+        2: '语 数 英 历 政 物 化 地 生 体',
+        3: '语 数 英 历 政 物 化 地 生 体',
+        4: '语 数 英 历 政 物 化 地 生 体',
+        5: '语 数 英 历 政 物 化 地 生 体',
+        6: '今天放假'
+    };
+    // 高考目标时间（安徽2029年高考首日）
+    const G = new Date('2029-06-07T00:00:00');
+    const W = ['日','一','二','三','四','五','六'];
+    const $ = id => document.getElementById(id);
+    const pad = n => n<10?'0'+n:''+n;
+
+    function tick(){
+        const n = new Date();
+        const d = n.getDay();
+// 今日课程直接使用字符串
+        $('course').textContent = C[d];
+// 时钟
+        $('clk').textContent = pad(n.getHours()) + ':' + pad(n.getMinutes()) + ':' + pad(n.getSeconds());
+        const sub = (d===0 || d===6)
+            ? '<span>放假了</span>'
+            : '星期' + W[d] + ' · 距周末还有<span>' + (6-d) + '</span>天';
+        $('clkSub').innerHTML = sub;
+// 高考倒计时
+        const diff = G - n;
+        if (diff > 0) {
+            const s = Math.floor(diff/1000);
+            const D = Math.floor(s/86400);
+            const H = Math.floor(s%86400/3600);
+            const M = Math.floor(s%3600/60);
+            const S = s%60;
+            $('cdD').textContent = D;
+            $('cdH').textContent = pad(H);
+            $('cdM').textContent = pad(M);
+            $('cdS').textContent = pad(S);
+        } else {
+            $('cdD').textContent = '0';
+            $('cdH').textContent = '00';
+            $('cdM').textContent = '00';
+            $('cdS').textContent = '00';
+        }
+    }
+    tick();
+    setInterval(tick,1000);
+</script>
+</body>
+</html>
