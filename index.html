@@ -7,196 +7,45 @@
     <title>高考倒计时</title>
     <style>
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-
-        :root{
-            --accent:#1FCCCD;
-            --fg:#111;
-            --muted:#5b6b6b;
-            --bg:#fff;
-            --pad:clamp(16px,4.5vw,32px);
-        }
-        @media (prefers-color-scheme:dark){
-            :root{--fg:#eaf7f7;--muted:#93a3a3;--bg:#0d1112}
-        }
-
+        :root{--accent:#1FCCCD;--fg:#111;--muted:#5b6b6b;--bg:#fff;--pad:clamp(16px,4.5vw,32px)}
+        @media (prefers-color-scheme:dark){:root{--fg:#eaf7f7;--muted:#93a3a3;--bg:#0d1112}}
         html{-webkit-text-size-adjust:100%}
-        body{
-            min-height:100dvh;
-            display:grid;
-            place-items:center;
-            padding:clamp(12px,4vw,32px);
-            background:var(--bg);
-            color:var(--fg);
-            font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',
-            'PingFang SC','Microsoft YaHei',sans-serif;
-            line-height:1.4;
-        }
-
-        .card{
-            width:min(100%,640px);
-            border:1px solid var(--accent);
-            padding:var(--pad);
-        }
-
-        .label{
-            font-size:clamp(12px,2.6vw,15px);
-            font-weight:700;
-            color:var(--accent);
-            letter-spacing:.08em;
-            text-transform:uppercase;
-        }
-        .sub{
-            margin-top:.4em;
-            font-size:clamp(10px,2.2vw,13px);
-            color:var(--muted);
-            font-weight:500;
-        }
-
-        .countdown{
-            margin-top:clamp(14px,4vw,26px);
-            display:grid;
-            grid-template-columns:repeat(4,minmax(0,1fr));
-            gap:clamp(4px,1.5vw,14px);
-        }
-        .unit{
-            display:flex;
-            flex-direction:column;
-            align-items:center;
-            min-width:0;
-            padding:clamp(6px,1.6vw,12px) 2px;
-        }
-        .num{
-            font-size:clamp(24px,8.5vw,58px);
-            font-weight:700;
-            color:var(--accent);
-            line-height:1;
-            letter-spacing:.02em;
-            font-variant-numeric:tabular-nums;
-            font-feature-settings:"tnum" 1;
-        }
-        .unit-label{
-            margin-top:clamp(4px,1.2vw,10px);
-            font-size:clamp(9px,2vw,12px);
-            color:var(--muted);
-            font-weight:600;
-            letter-spacing:.06em;
-        }
-
-        /* 极窄屏：2×2 排布，数字更大更易读 */
-        @media (max-width:320px){
-            .countdown{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:14px}
-            .num{font-size:clamp(30px,14vw,44px)}
-        }
-
-        @media (prefers-reduced-motion:no-preference){
-            .is-done .num{animation:breathe 1.8s ease-in-out infinite}
-        }
+        body{min-height:100dvh;display:grid;place-items:center;padding:clamp(12px,4vw,32px);background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue','PingFang SC','Microsoft YaHei',sans-serif;line-height:1.4;transition:background-color .3s,color .3s}
+        .card{width:min(100%,640px);border:1px solid var(--accent);padding:var(--pad)}
+        .label{font-size:clamp(12px,2.6vw,15px);font-weight:700;color:var(--accent);letter-spacing:.08em}
+        .sub{margin-top:.4em;font-size:clamp(10px,2.2vw,13px);color:var(--muted);font-weight:500}
+        .countdown{margin-top:clamp(14px,4vw,26px);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(4px,1.5vw,14px)}
+        .unit{display:flex;flex-direction:column;align-items:center;min-width:0;padding:clamp(6px,1.6vw,12px) 2px}
+        .num{font-size:clamp(24px,8.5vw,58px);font-weight:700;color:var(--accent);line-height:1;letter-spacing:.02em;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+        .unit-label{margin-top:clamp(4px,1.2vw,10px);font-size:clamp(9px,2vw,12px);color:var(--muted);font-weight:600;letter-spacing:.06em}
+        @media (max-width:320px){.countdown{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:14px}.num{font-size:clamp(30px,14vw,44px)}}
+        @media (prefers-reduced-motion:no-preference){.is-done .num{animation:breathe 1.8s ease-in-out infinite}}
         @keyframes breathe{50%{opacity:.45}}
     </style>
 </head>
 <body>
 <main class="card">
     <h1 class="label">高考倒计时</h1>
-    <p class="sub" id="target">距离 2029 年 6 月 7 日</p>
-
+    <p class="sub" id="hint">距离高考还有</p>
     <div class="countdown" role="timer" aria-live="off">
-        <div class="unit">
-            <span class="num" id="d">--</span>
-            <span class="unit-label">DAYS</span>
-        </div>
-        <div class="unit">
-            <span class="num" id="h">--</span>
-            <span class="unit-label">HOURS</span>
-        </div>
-        <div class="unit">
-            <span class="num" id="m">--</span>
-            <span class="unit-label">MINUTES</span>
-        </div>
-        <div class="unit">
-            <span class="num" id="s">--</span>
-            <span class="unit-label">SECONDS</span>
-        </div>
+        <div class="unit"><span class="num" id="d">---</span><span class="unit-label">天</span></div>
+        <div class="unit"><span class="num" id="h">--</span><span class="unit-label">时</span></div>
+        <div class="unit"><span class="num" id="m">--</span><span class="unit-label">分</span></div>
+        <div class="unit"><span class="num" id="s">--</span><span class="unit-label">秒</span></div>
     </div>
 </main>
-
 <script>
-    (() => {
-        'use strict';
-
-        /** 目标时间：2029 年 6 月 7 日 00:00:00（本地时区） */
-        const TARGET_TIME = new Date(2029, 5, 7).getTime();
-
-        const MS_SECOND = 1000;
-        const SECONDS_PER_MINUTE = 60;
-        const SECONDS_PER_HOUR = 3600;
-        const SECONDS_PER_DAY = 86400;
-
-        const els = {
-            days:    document.getElementById('d'),
-            hours:   document.getElementById('h'),
-            minutes: document.getElementById('m'),
-            seconds: document.getElementById('s'),
-            hint:    document.getElementById('target'),
-            card:    document.querySelector('.card')
-        };
-
-        const pad2 = n => (n < 10 ? '0' : '') + n;
-
-        /** 只在内容真正变化时写 DOM，减少无谓的样式重算 */
-        const setText = (el, text) => {
-            if (el.textContent !== text) el.textContent = text;
-        };
-
-        let timerId = null;
-        let finished = false;
-
-        function render(remain) {
-            const total = Math.floor(remain / MS_SECOND);
-            setText(els.days,    String(Math.floor(total / SECONDS_PER_DAY)));
-            setText(els.hours,   pad2(Math.floor(total % SECONDS_PER_DAY / SECONDS_PER_HOUR)));
-            setText(els.minutes, pad2(Math.floor(total % SECONDS_PER_HOUR / SECONDS_PER_MINUTE)));
-            setText(els.seconds, pad2(total % SECONDS_PER_MINUTE));
-        }
-
-        function stop() {
-            if (timerId !== null) {
-                clearTimeout(timerId);
-                timerId = null;
-            }
-        }
-
-        function finish() {
-            if (finished) return;
-            finished = true;
-            stop();
-            render(0);
-            setText(els.hint, '高考已开始，加油！');
-            els.card.classList.add('is-done');
-        }
-
-        function tick() {
-            const remain = TARGET_TIME - Date.now();
-            if (remain <= 0) { finish(); return; }
-
-            render(remain);
-
-            // 对齐到下一个整秒，避免 setInterval 长期累积漂移
-            timerId = setTimeout(tick, MS_SECOND - (Date.now() % MS_SECOND));
-        }
-
-        function start() {
-            if (finished) return;
-            stop();
-            tick();
-        }
-
-        // 标签页休眠后回到前台：立即刷新并对齐节奏
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) start();
-        });
-
-        start();
-    })();
+    (()=>{const T=new Date(2029,5,7,0,0,0,0).getTime(),D=86400,H=3600,M=60,
+        e={d:document.getElementById('d'),h:document.getElementById('h'),m:document.getElementById('m'),s:document.getElementById('s'),hint:document.getElementById('hint'),card:document.querySelector('.card')},
+        p=(n,l)=>String(n).padStart(l,'0'),st=(el,t)=>{if(el.textContent!==t)el.textContent=t};
+        let raf=null,last=-1,fin=false;
+        function rnd(t){st(e.d,p(Math.floor(t/D),3));st(e.h,p(Math.floor(t%D/H),2));st(e.m,p(Math.floor(t%H/M),2));st(e.s,p(t%M,2))}
+        function stop(){if(raf!==null){cancelAnimationFrame(raf);raf=null}}
+        function fini(){if(fin)return;fin=true;stop();last=0;rnd(0);st(e.hint,'高考已开始，加油！');e.card.classList.add('is-done')}
+        function frame(){const r=T-Date.now();if(r<=0){fini();return}const s=Math.floor(r/1000);if(s!==last){last=s;rnd(s)}raf=requestAnimationFrame(frame)}
+        function start(){if(fin)return;stop();last=-1;raf=requestAnimationFrame(frame)}
+        document.addEventListener('visibilitychange',()=>{if(!document.hidden)start()});
+        start()})();
 </script>
 </body>
 </html>
