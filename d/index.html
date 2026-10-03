@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>小恐龙游戏</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: #fff;
+            font-family: sans-serif;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+        #game {
+            width: 100%;
+            max-width: 600px;
+            height: 200px;
+            position: relative;
+            background: #f7f7f7;
+            border: 2px solid #535353;
+            border-radius: 4px;
+            overflow: hidden;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        canvas { display: block; width: 100%; height: 100%; }
+        #go {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: sans-serif;
+            font-size: 18px;
+            color: #535353;
+            text-align: center;
+            pointer-events: none;
+            display: none;
+        }
+        #go .skull { font-size: 48px; margin-bottom: 8px; }
+        #go .sub { font-size: 12px; margin-top: 6px; }
+        #sc {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            font-family: sans-serif;
+            font-size: 14px;
+            color: #535353;
+            pointer-events: none;
+        }
+        .hint {
+            text-align: center;
+            margin-top: 8px;
+            font-family: sans-serif;
+            font-size: 12px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+<div id="game">
+    <canvas id="cv" width="600" height="200"></canvas>
+    <div id="go">
+        <div class="skull">&#x2620;</div>
+        <div>GAME OVER</div>
+        <div class="sub">点击重新开始</div>
+    </div>
+    <div id="sc">00000</div>
+</div>
+<div class="hint">点击屏幕 / 按空格键 / 按上方向键 跳跃</div>
+
+<script>
+    (function(){
+        var c = document.getElementById('cv');
+        var ctx = c.getContext('2d');
+        var W = 600, H = 200;
+        var groundY = 170;
+        var dino = { x: 50, y: groundY - 40, w: 34, h: 40, vy: 0, onGround: true, frame: 0 };
+        var cacti = [];
+        var score = 0, hi = 0, speed = 5, running = false, over = false;
+        var timer = 0, spawnTimer = 0;
+        var jumpSpeed = -11;
+        var gravity = 0.55;
+
+        function reset() {
+            dino.y = groundY - dino.h;
+            dino.vy = 0;
+            dino.onGround = true;
+            dino.frame = 0;
+            cacti = [];
+            score = 0;
+            speed = 5;
+            timer = 0;
+            spawnTimer = 0;
+            over = false;
+            running = true;
+            document.getElementById('go').style.display = 'none';
+            document.getElementById('sc').textContent = '00000';
+        }
+
+        function jump() {
+            if (over) { reset(); return; }
+            if (!running) { running = true; }
+            if (dino.onGround) {
+                dino.vy = jumpSpeed;
+                dino.onGround = false;
+            }
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                e.preventDefault();
+                jump();
+            }
+        });
+
+        var gameEl = document.getElementById('game');
+        gameEl.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            jump();
+        }, { passive: false });
+        gameEl.addEventListener('mousedown', function(e) {
+            jump();
+        });
+
+        function spawnCactus() {
+            var type = Math.random() < 0.7 ? 0 : 1;
+            var w = type === 0 ? 20 : 30;
+            var h = type === 0 ? 40 : 50;
+            cacti.push({ x: W + 10, y: groundY - h, w: w, h: h });
+        }
+
+        function drawDino() {
+            ctx.fillStyle = '#535353';
+            var x = dino.x, y = dino.y, w = dino.w, h = dino.h;
+            ctx.fillRect(x + 4, y + 8, w - 8, h - 14);
+            ctx.fillRect(x + 14, y, 18, 14);
+            ctx.fillStyle = '#f7f7f7';
+            ctx.fillRect(x + 24, y + 3, 3, 3);
+            ctx.fillStyle = '#535353';
+            ctx.fillRect(x, y + 16, 8, 6);
+            if (dino.onGround) {
+                var leg = Math.floor(dino.frame / 6) % 2;
+                if (leg === 0) {
+                    ctx.fillRect(x + 6, y + h - 14, 6, 14);
+                    ctx.fillRect(x + 18, y + h - 10, 6, 10);
+                } else {
+                    ctx.fillRect(x + 6, y + h - 10, 6, 10);
+                    ctx.fillRect(x + 18, y + h - 14, 6, 14);
+                }
+            } else {
+                ctx.fillRect(x + 6, y + h - 10, 6, 10);
+                ctx.fillRect(x + 18, y + h - 14, 6, 14);
+            }
+        }
+
+        function drawCactus(cac) {
+            ctx.fillStyle = '#535353';
+            ctx.fillRect(cac.x + 4, cac.y, cac.w - 8, cac.h);
+            ctx.fillRect(cac.x, cac.y + 8, 4, 12);
+            ctx.fillRect(cac.x + cac.w - 4, cac.y + 12, 4, 10);
+        }
+
+        function drawGround() {
+            ctx.strokeStyle = '#535353';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, groundY);
+            ctx.lineTo(W, groundY);
+            ctx.stroke();
+            ctx.fillStyle = '#535353';
+            var offset = -(timer * speed) % 20;
+            for (var i = offset; i < W; i += 20) {
+                if (Math.random() > 0.5) ctx.fillRect(i, groundY + 2 + Math.random() * 4, 2, 2);
+            }
+        }
+
+        function drawClouds() {
+            ctx.fillStyle = '#d1d1d1';
+            var t = timer * 0.5;
+            var clouds = [
+                {x: (100 - t) % (W + 100), y: 40},
+                {x: (350 - t * 0.7) % (W + 100), y: 60},
+                {x: (500 - t * 0.9) % (W + 100), y: 30}
+            ];
+            clouds.forEach(function(cl) {
+                var cx = cl.x < -60 ? cl.x + W + 160 : cl.x;
+                ctx.fillRect(cx, cl.y, 30, 10);
+                ctx.fillRect(cx + 6, cl.y - 8, 18, 8);
+            });
+        }
+
+        function update() {
+            if (!running || over) return;
+            timer++;
+            dino.frame++;
+            score += 0.1;
+            if (score > hi) hi = score;
+            document.getElementById('sc').textContent = String(Math.floor(score)).padStart(5, '0');
+
+            dino.vy += gravity;
+            dino.y += dino.vy;
+            if (dino.y >= groundY - dino.h) {
+                dino.y = groundY - dino.h;
+                dino.vy = 0;
+                dino.onGround = true;
+            }
+
+            spawnTimer++;
+            var spawnRate = Math.max(40, 100 - Math.floor(score / 50) * 5);
+            if (spawnTimer > spawnRate + Math.random() * 40) {
+                spawnCactus();
+                spawnTimer = 0;
+            }
+
+            for (var i = cacti.length - 1; i >= 0; i--) {
+                cacti[i].x -= speed;
+                if (cacti[i].x + cacti[i].w < 0) cacti.splice(i, 1);
+            }
+
+            for (var i = 0; i < cacti.length; i++) {
+                var cac = cacti[i];
+                if (dino.x + 6 < cac.x + cac.w && dino.x + dino.w - 6 > cac.x &&
+                    dino.y + 4 < cac.y + cac.h && dino.y + dino.h - 4 > cac.y) {
+                    over = true;
+                    running = false;
+                    document.getElementById('go').style.display = 'block';
+                    break;
+                }
+            }
+        }
+
+        function loop() {
+            ctx.clearRect(0, 0, W, H);
+            drawClouds();
+            drawGround();
+            cacti.forEach(drawCactus);
+            drawDino();
+            update();
+            requestAnimationFrame(loop);
+        }
+
+        ctx.clearRect(0, 0, W, H);
+        drawClouds();
+        drawGround();
+        drawDino();
+        document.getElementById('sc').textContent = '00000';
+        loop();
+    })();
+</script>
+</body>
+</html>
