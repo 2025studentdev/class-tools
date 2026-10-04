@@ -2,160 +2,409 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>小恐龙游戏</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
         body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            background: #fff;
-            font-family: sans-serif;
+            margin: 0;
+            background: #f7f7f7;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
             overflow: hidden;
-            touch-action: manipulation;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
         }
         #game {
-            width: 100%;
-            max-width: 600px;
-            height: 200px;
-            position: relative;
-            background: #f7f7f7;
-            border: 2px solid #535353;
-            border-radius: 4px;
+            position: fixed;
+            inset: 0;
             overflow: hidden;
+            background: #f7f7f7;
             cursor: pointer;
-            user-select: none;
-            -webkit-user-select: none;
         }
         canvas { display: block; width: 100%; height: 100%; }
+
+        /* ---- 开始提示 ---- */
+        #start {
+            position: absolute;
+            left: 50%;
+            top: 46%;
+            transform: translate(-50%, -50%);
+            font-size: clamp(13px, 3.2vmin, 18px);
+            letter-spacing: 3px;
+            color: #c8c8c8;
+            white-space: nowrap;
+            pointer-events: none;
+            animation: breathe 1.8s ease-in-out infinite;
+        }
+        @keyframes breathe {
+            0%, 100% { opacity: .45; }
+            50%      { opacity: .95; }
+        }
+
+        /* ---- 结束提示 ---- */
         #go {
             position: absolute;
-            top: 50%;
-            left: 50%;
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            font-family: sans-serif;
-            font-size: 18px;
             color: #535353;
             text-align: center;
             pointer-events: none;
             display: none;
         }
-        #go .skull { font-size: 48px; margin-bottom: 8px; }
-        #go .sub { font-size: 12px; margin-top: 6px; }
+        #go .skull { font-size: clamp(32px, 9vmin, 60px); line-height: 1; margin-bottom: 10px; }
+        #go .title { font-size: clamp(16px, 4.5vmin, 28px); letter-spacing: 3px; font-weight: 600; }
+        #go .sub   { font-size: clamp(11px, 2.8vmin, 15px); margin-top: 12px; color: #999; }
+
         #sc {
             position: absolute;
-            top: 8px;
-            right: 12px;
-            font-family: sans-serif;
-            font-size: 14px;
+            top: max(10px, env(safe-area-inset-top));
+            right: max(14px, env(safe-area-inset-right));
+            font-size: clamp(13px, 3vmin, 20px);
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 2px;
             color: #535353;
             pointer-events: none;
         }
+
         .hint {
+            position: absolute;
+            left: 0; right: 0;
+            bottom: max(8px, env(safe-area-inset-bottom));
             text-align: center;
-            margin-top: 8px;
-            font-family: sans-serif;
             font-size: 12px;
-            color: #888;
+            color: #c8c8c8;
+            pointer-events: none;
+            transition: opacity .3s;
         }
+        .hint.hide { opacity: 0; }
     </style>
 </head>
 <body>
 <div id="game">
-    <canvas id="cv" width="600" height="200"></canvas>
+    <canvas id="cv"></canvas>
+
+    <div id="start">点击屏幕以开始</div>
+
     <div id="go">
         <div class="skull">&#x2620;</div>
-        <div>GAME OVER</div>
+        <div class="title">GAME OVER</div>
         <div class="sub">点击重新开始</div>
     </div>
+
     <div id="sc">00000</div>
+    <div class="hint" id="hint">点击屏幕 / 按空格键 跳跃</div>
 </div>
-<div class="hint">点击屏幕 / 按空格键 / 按上方向键 跳跃</div>
 
 <script>
-    (function(){
-        var c = document.getElementById('cv');
-        var ctx = c.getContext('2d');
-        var W = 600, H = 200;
-        var groundY = 170;
-        var dino = { x: 50, y: groundY - 40, w: 34, h: 40, vy: 0, onGround: true, frame: 0 };
-        var cacti = [];
-        var score = 0, hi = 0, speed = 5, running = false, over = false;
-        var timer = 0, spawnTimer = 0;
-        var jumpSpeed = -11;
-        var gravity = 0.55;
+    (function () {
+        'use strict';
 
-        function reset() {
-            dino.y = groundY - dino.h;
-            dino.vy = 0;
-            dino.onGround = true;
-            dino.frame = 0;
-            cacti = [];
-            score = 0;
-            speed = 5;
-            timer = 0;
-            spawnTimer = 0;
-            over = false;
-            running = true;
-            document.getElementById('go').style.display = 'none';
-            document.getElementById('sc').textContent = '00000';
+        var gameEl  = document.getElementById('game');
+        var c       = document.getElementById('cv');
+        var ctx     = c.getContext('2d');
+        var goEl    = document.getElementById('go');
+        var startEl = document.getElementById('start');
+        var scEl    = document.getElementById('sc');
+        var hintEl  = document.getElementById('hint');
+
+        var DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+        /* ============================================================
+           状态机：  READY(等待开始) -> PLAYING(进行中) -> OVER(结束)
+           ============================================================ */
+        var READY = 0, PLAYING = 1, OVER = 2;
+        var state = READY;
+
+        /* ============================================================
+           逻辑世界坐标：与 scale = 1 时的原始 600x200 完全一致
+           ============================================================ */
+        var W = 600, H = 200, groundY = 170;
+
+        /* 物理常量（逻辑单位 / 帧） */
+        var GRAVITY    = 0.55;
+        var JUMP_V     = -11;
+        var BASE_SPEED = 5;
+
+        /* 状态数据 */
+        var dino, cacti, score, speed, timer, distanceSinceSpawn, nextGap;
+
+        /* ---------- 间距计算 ---------- */
+
+        // 一次跳跃在空中的帧数
+        function airFrames() {
+            return 2 * Math.abs(JUMP_V) / GRAVITY;   // = 40 帧
+        }
+        // 一次跳跃能跨过的水平距离
+        function jumpDist() {
+            return airFrames() * speed;
+        }
+        // 生成下一个间距：随机、但永远不小于"跳跃距离 + 安全余量"
+        function pickGap() {
+            var jd     = jumpDist();
+            var minGap = jd + 110;          // 最小安全间距（随速度自动变大）
+            var maxGap = jd + 550;          // 最大间距
+            return minGap + Math.random() * (maxGap - minGap);
         }
 
-        function jump() {
-            if (over) { reset(); return; }
-            if (!running) { running = true; }
+        /* ---------- 初始化 ---------- */
+
+        function initState() {
+            dino = {
+                x: 50, y: groundY - 40, w: 34, h: 40,
+                vy: 0, onGround: true, frame: 0
+            };
+            cacti              = [];
+            score              = 0;
+            speed              = BASE_SPEED;
+            timer              = 0;
+            distanceSinceSpawn = 0;
+            nextGap            = pickGap();
+        }
+
+        // 进入"等待开始"界面
+        function showReady() {
+            state             = READY;
+            initState();
+            goEl.style.display    = 'none';
+            startEl.style.display = 'block';
+            hintEl.classList.add('hide');
+            scEl.textContent      = '00000';
+        }
+
+        // 正式开始一局
+        function startGame() {
+            initState();
+            state                 = PLAYING;
+            goEl.style.display    = 'none';
+            startEl.style.display = 'none';
+            hintEl.classList.remove('hide');
+            scEl.textContent      = '00000';
+        }
+
+        /* ---------- 自适应尺寸 ---------- */
+
+        function resize() {
+            var rect = gameEl.getBoundingClientRect();
+            var cssW = rect.width  || window.innerWidth;
+            var cssH = rect.height || window.innerHeight;
+
+            c.width  = Math.round(cssW * DPR);
+            c.height = Math.round(cssH * DPR);
+            c.style.width  = cssW + 'px';
+            c.style.height = cssH + 'px';
+
+            // 缩放系数：小屏为 1，大屏放大到最多 2.2 倍
+            var s = Math.sqrt(cssW * cssH) / 400;
+            s = Math.max(1, Math.min(2.2, s));
+
+            ctx.setTransform(DPR * s, 0, 0, DPR * s, 0, 0);
+
+            W       = cssW / s;          // 逻辑宽度
+            H       = cssH / s;          // 逻辑高度
+            groundY = H - 30;
+
+            // 把恐龙重新贴到地面上
+            dino.x  = 50;
+            dino.w  = 34;
+            dino.h  = 40;
+            dino.y  = groundY - dino.h;
+            dino.vy = 0;
+            dino.onGround = true;
+
+            // 尺寸变了，旧仙人掌的位置失去意义，清掉
+            cacti              = [];
+            distanceSinceSpawn = 0;
+            nextGap            = pickGap();
+        }
+
+        /* ---------- 输入统一入口 ---------- */
+
+        function onAction() {
+            if (state === READY) {
+                startGame();                 // 第一次点击：开始
+                return;
+            }
+            if (state === OVER) {
+                startGame();                 // 结束后点击：直接重开
+                return;
+            }
+            // PLAYING：跳跃
             if (dino.onGround) {
-                dino.vy = jumpSpeed;
+                dino.vy       = JUMP_V;
                 dino.onGround = false;
             }
         }
 
-        document.addEventListener('keydown', function(e) {
-            if (e.code === 'Space' || e.code === 'ArrowUp') {
+        // 用 pointerdown 同时覆盖鼠标 / 触摸 / 手写笔，避免重复触发
+        gameEl.addEventListener('pointerdown', function (e) {
+            e.preventDefault();
+            onAction();
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
                 e.preventDefault();
-                jump();
+                onAction();
             }
         });
 
-        var gameEl = document.getElementById('game');
-        gameEl.addEventListener('touchstart', function(e) {
-            e.preventDefault();
-            jump();
-        }, { passive: false });
-        gameEl.addEventListener('mousedown', function(e) {
-            jump();
-        });
+        /* ---------- 生成仙人掌 ---------- */
 
         function spawnCactus() {
-            var type = Math.random() < 0.7 ? 0 : 1;
-            var w = type === 0 ? 20 : 30;
-            var h = type === 0 ? 40 : 50;
-            cacti.push({ x: W + 10, y: groundY - h, w: w, h: h });
+            var big = Math.random() < 0.5;
+            var h   = big ? 48 + Math.random() * 14 : 30 + Math.random() * 14;
+            var w   = h * 0.5;
+
+            // 25% 概率生成"双株"，作为一个整体障碍
+            if (Math.random() < 0.25) {
+                cacti.push({ x: W + 20, y: groundY - h, w: w, h: h });
+                cacti.push({
+                    x: W + 20 + w + 8,
+                    y: groundY - h * 0.85,
+                    w: w * 0.85,
+                    h: h * 0.85
+                });
+            } else {
+                cacti.push({ x: W + 20, y: groundY - h, w: w, h: h });
+            }
+        }
+
+        /* ---------- 更新 ---------- */
+
+        function gameOver() {
+            state = OVER;
+            goEl.style.display = 'block';
+        }
+
+        function update(dt) {
+            if (state !== PLAYING) return;   // 未开始 / 已结束：世界静止
+
+            timer      += dt;
+            dino.frame += dt;
+
+            score += 0.1 * dt;
+            scEl.textContent = String(Math.floor(score)).padStart(5, '0');
+
+            // 难度：速度缓慢上升（最高 8）
+            speed = BASE_SPEED + Math.min(3, score / 400);
+
+            // 恐龙物理
+            dino.vy += GRAVITY * dt;
+            dino.y  += dino.vy * dt;
+            if (dino.y >= groundY - dino.h) {
+                dino.y        = groundY - dino.h;
+                dino.vy       = 0;
+                dino.onGround = true;
+            }
+
+            // ★ 按"已经移动的距离"生成，间距完全可控
+            distanceSinceSpawn += speed * dt;
+            if (distanceSinceSpawn >= nextGap) {
+                spawnCactus();
+                distanceSinceSpawn = 0;
+                nextGap            = pickGap();
+            }
+
+            // 移动 / 回收仙人掌
+            for (var i = cacti.length - 1; i >= 0; i--) {
+                cacti[i].x -= speed * dt;
+                if (cacti[i].x + cacti[i].w < -20) cacti.splice(i, 1);
+            }
+
+            // 碰撞检测（内缩几像素，手感更宽容）
+            for (var j = 0; j < cacti.length; j++) {
+                var cc = cacti[j];
+                if (dino.x + 7 < cc.x + cc.w &&
+                    dino.x + dino.w - 7 > cc.x &&
+                    dino.y + 5 < cc.y + cc.h &&
+                    dino.y + dino.h - 3 > cc.y) {
+                    gameOver();
+                    break;
+                }
+            }
+        }
+
+        /* ---------- 绘制 ---------- */
+
+        // 确定性伪随机，保证地面小石子不会逐帧闪烁
+        function rand01(n) {
+            var x = Math.sin(n * 12.9898) * 43758.5453;
+            return x - Math.floor(x);
+        }
+
+        function drawClouds() {
+            ctx.fillStyle = '#dcdcdc';
+            var clouds = [
+                { x: 0.10, y: 0.18, s: 1.00, sp: 0.30 },
+                { x: 0.50, y: 0.34, s: 0.75, sp: 0.22 },
+                { x: 0.80, y: 0.12, s: 1.20, sp: 0.42 }
+            ];
+            var period = W + 160;
+            for (var i = 0; i < clouds.length; i++) {
+                var cl  = clouds[i];
+                var raw = cl.x * W - timer * speed * cl.sp;
+                var px  = ((raw % period) + period) % period - 80;
+                var py  = cl.y * groundY;
+                var s   = cl.s;
+                ctx.fillRect(px,         py,         30 * s, 9 * s);
+                ctx.fillRect(px + 7 * s, py - 7 * s, 16 * s, 7 * s);
+            }
+        }
+
+        function drawGround() {
+            // 地面线
+            ctx.strokeStyle = '#535353';
+            ctx.lineWidth   = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, groundY);
+            ctx.lineTo(W, groundY);
+            ctx.stroke();
+
+            // 地面小石子（跟随地面滚动，位置稳定不闪烁）
+            ctx.fillStyle = '#b9b9b9';
+            var spacing = 26;
+            var scroll  = timer * speed;
+            var first   = Math.floor(scroll / spacing);
+            var count   = Math.ceil(W / spacing) + 2;
+
+            for (var k = 0; k < count; k++) {
+                var idx = first + k;
+                var r1  = rand01(idx);
+                if (r1 < 0.35) continue;
+
+                var sx = idx * spacing - scroll;
+                var r2 = rand01(idx * 3.7 + 1.3);
+                var r3 = rand01(idx * 9.1 + 4.2);
+                ctx.fillRect(sx, groundY + 4 + r2 * 6, 1.5 + r3 * 3, 1.5 + r2 * 2.5);
+            }
         }
 
         function drawDino() {
-            ctx.fillStyle = '#535353';
             var x = dino.x, y = dino.y, w = dino.w, h = dino.h;
-            ctx.fillRect(x + 4, y + 8, w - 8, h - 14);
-            ctx.fillRect(x + 14, y, 18, 14);
-            ctx.fillStyle = '#f7f7f7';
-            ctx.fillRect(x + 24, y + 3, 3, 3);
+
             ctx.fillStyle = '#535353';
-            ctx.fillRect(x, y + 16, 8, 6);
-            if (dino.onGround) {
+            ctx.fillRect(x + 4, y + 8, w - 8, h - 14);   // 身体
+            ctx.fillRect(x + 14, y, 18, 14);             // 头
+            ctx.fillRect(x, y + 16, 8, 6);               // 尾巴
+
+            ctx.fillStyle = '#f7f7f7';
+            ctx.fillRect(x + 24, y + 3, 3, 3);           // 眼睛
+
+            ctx.fillStyle = '#535353';
+            if (dino.onGround && state === PLAYING) {
                 var leg = Math.floor(dino.frame / 6) % 2;
                 if (leg === 0) {
-                    ctx.fillRect(x + 6, y + h - 14, 6, 14);
+                    ctx.fillRect(x + 6,  y + h - 14, 6, 14);
                     ctx.fillRect(x + 18, y + h - 10, 6, 10);
                 } else {
-                    ctx.fillRect(x + 6, y + h - 10, 6, 10);
+                    ctx.fillRect(x + 6,  y + h - 10, 6, 10);
                     ctx.fillRect(x + 18, y + h - 14, 6, 14);
                 }
             } else {
-                ctx.fillRect(x + 6, y + h - 10, 6, 10);
+                // 站立（等待开始 / 跳跃中）
+                ctx.fillRect(x + 6,  y + h - 10, 6, 10);
                 ctx.fillRect(x + 18, y + h - 14, 6, 14);
             }
         }
@@ -163,95 +412,50 @@
         function drawCactus(cac) {
             ctx.fillStyle = '#535353';
             ctx.fillRect(cac.x + 4, cac.y, cac.w - 8, cac.h);
-            ctx.fillRect(cac.x, cac.y + 8, 4, 12);
-            ctx.fillRect(cac.x + cac.w - 4, cac.y + 12, 4, 10);
+            ctx.fillRect(cac.x, cac.y + cac.h * 0.35, 4, cac.h * 0.30);
+            ctx.fillRect(cac.x + cac.w - 4, cac.y + cac.h * 0.45, 4, cac.h * 0.25);
         }
 
-        function drawGround() {
-            ctx.strokeStyle = '#535353';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(0, groundY);
-            ctx.lineTo(W, groundY);
-            ctx.stroke();
-            ctx.fillStyle = '#535353';
-            var offset = -(timer * speed) % 20;
-            for (var i = offset; i < W; i += 20) {
-                if (Math.random() > 0.5) ctx.fillRect(i, groundY + 2 + Math.random() * 4, 2, 2);
-            }
-        }
-
-        function drawClouds() {
-            ctx.fillStyle = '#d1d1d1';
-            var t = timer * 0.5;
-            var clouds = [
-                {x: (100 - t) % (W + 100), y: 40},
-                {x: (350 - t * 0.7) % (W + 100), y: 60},
-                {x: (500 - t * 0.9) % (W + 100), y: 30}
-            ];
-            clouds.forEach(function(cl) {
-                var cx = cl.x < -60 ? cl.x + W + 160 : cl.x;
-                ctx.fillRect(cx, cl.y, 30, 10);
-                ctx.fillRect(cx + 6, cl.y - 8, 18, 8);
-            });
-        }
-
-        function update() {
-            if (!running || over) return;
-            timer++;
-            dino.frame++;
-            score += 0.1;
-            if (score > hi) hi = score;
-            document.getElementById('sc').textContent = String(Math.floor(score)).padStart(5, '0');
-
-            dino.vy += gravity;
-            dino.y += dino.vy;
-            if (dino.y >= groundY - dino.h) {
-                dino.y = groundY - dino.h;
-                dino.vy = 0;
-                dino.onGround = true;
-            }
-
-            spawnTimer++;
-            var spawnRate = Math.max(40, 100 - Math.floor(score / 50) * 5);
-            if (spawnTimer > spawnRate + Math.random() * 40) {
-                spawnCactus();
-                spawnTimer = 0;
-            }
-
-            for (var i = cacti.length - 1; i >= 0; i--) {
-                cacti[i].x -= speed;
-                if (cacti[i].x + cacti[i].w < 0) cacti.splice(i, 1);
-            }
-
-            for (var i = 0; i < cacti.length; i++) {
-                var cac = cacti[i];
-                if (dino.x + 6 < cac.x + cac.w && dino.x + dino.w - 6 > cac.x &&
-                    dino.y + 4 < cac.y + cac.h && dino.y + dino.h - 4 > cac.y) {
-                    over = true;
-                    running = false;
-                    document.getElementById('go').style.display = 'block';
-                    break;
-                }
-            }
-        }
-
-        function loop() {
+        function draw() {
             ctx.clearRect(0, 0, W, H);
             drawClouds();
             drawGround();
-            cacti.forEach(drawCactus);
+            for (var i = 0; i < cacti.length; i++) drawCactus(cacti[i]);
             drawDino();
-            update();
+        }
+
+        /* ---------- 主循环（带 dt 归一化，120Hz 屏幕也不会变快）---------- */
+
+        var lastTs = 0;
+
+        function loop(ts) {
+            if (!lastTs) lastTs = ts;
+            var dt = (ts - lastTs) / (1000 / 60);
+            lastTs = ts;
+            if (dt > 3) dt = 3;          // 切回标签页时防止跳帧
+            if (dt <= 0) dt = 1;
+
+            update(dt);
+            draw();
+
             requestAnimationFrame(loop);
         }
 
-        ctx.clearRect(0, 0, W, H);
-        drawClouds();
-        drawGround();
-        drawDino();
-        document.getElementById('sc').textContent = '00000';
-        loop();
+        /* ---------- 启动 ---------- */
+
+        initState();
+        resize();
+        showReady();                     // ★ 先停在"点击屏幕以开始"界面
+        requestAnimationFrame(loop);
+
+        var resizeTimer;
+        function onResize() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(resize, 120);
+        }
+        window.addEventListener('resize', onResize);
+        window.addEventListener('orientationchange', onResize);
+
     })();
 </script>
 </body>

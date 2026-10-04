@@ -79,10 +79,13 @@
         .reset:hover { background: #f3f7fc; border-color: #b9c6d6; }
         .reset:active { transform: translateY(1px); }
 
-        /* ---------- 难度 ---------- */
+        /* ---------- 难度 / 操作模式 ---------- */
         .levels { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
 
-        .levels button {
+        .modes { display: flex; gap: 8px; margin-bottom: 14px; }
+
+        .levels button,
+        .modes button {
             border: 1px solid #d6dee8;
             background: #fff;
             color: #5b6b7d;
@@ -92,12 +95,23 @@
             cursor: pointer;
             transition: all .15s;
             font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
         }
-        .levels button:hover { border-color: #9fb3c8; color: #2c3e50; }
-        .levels button.active {
+        .levels button:hover,
+        .modes button:hover { border-color: #9fb3c8; color: #2c3e50; }
+
+        .levels button.active,
+        .modes button.active {
             background: #2c3e50;
             border-color: #2c3e50;
             color: #fff;
+        }
+
+        /* 模式按钮更大，方便手指点按 */
+        .modes button {
+            padding: 9px 26px;
+            font-size: 14px;
+            min-width: 92px;
         }
 
         /* ---------- 棋盘 ---------- */
@@ -137,6 +151,9 @@
             transition: background .1s ease;
         }
         .cell:hover:not(.revealed) { background: #cfdae7; }
+
+        /* 插旗模式下光标提示 */
+        .board.flag-mode .cell:not(.revealed) { cursor: crosshair; }
 
         .cell.revealed {
             background: #f6f9fc;
@@ -245,12 +262,21 @@
         <button data-level="hard">高级 16 × 30</button>
     </div>
 
+    <!-- 操作模式切换：移动端用它区分「翻开」和「插旗」 -->
+    <div class="modes" id="modes">
+        <button type="button" data-mode="reveal" class="active">翻开</button>
+        <button type="button" data-mode="flag">插旗</button>
+    </div>
+
     <div class="board-wrap">
         <div class="board" id="board"></div>
     </div>
 
     <div class="status" id="status"></div>
-    <p class="hint">左键翻开 · 右键插旗 · 双击数字快速展开周围</p>
+    <p class="hint">
+        左键翻开 · 右键插旗 · 双击数字快速展开周围<br>
+        触屏用上方按钮切换「翻开 / 插旗」，长按格子同样可以插旗
+    </p>
 </div>
 
 <script>
@@ -271,6 +297,7 @@
         var timerEl    = document.getElementById('timer');
         var statusEl   = document.getElementById('status');
         var resetBtn   = document.getElementById('reset');
+        var modesEl    = document.getElementById('modes');
         var appEl      = document.querySelector('.app');
 
         /* ============ 状态 ============ */
@@ -279,6 +306,9 @@
         var started, gameOver, revealedCount, flagCount;
         var elapsed = 0, timerId = null;
         var currentLevel = 'easy';
+
+        /* 当前操作模式：'reveal' 翻开 | 'flag' 插旗 */
+        var mode = 'reveal';
 
         /* ============ 初始化 ============ */
         function init(level) {
@@ -564,20 +594,51 @@
             statusEl.className = 'status win';
         }
 
+        /* ============ 模式切换 ============ */
+        function setMode(m) {
+            mode = m;
+            boardEl.classList.toggle('flag-mode', m === 'flag');
+
+            var btns = modesEl.querySelectorAll('button');
+            for (var i = 0; i < btns.length; i++) {
+                btns[i].classList.toggle('active', btns[i].dataset.mode === m);
+            }
+        }
+
         /* ============ 事件绑定 ============ */
-        var lastLongPress = 0;
+        var lastLongPress = 0;     // 长按插旗的时间戳，用于吞掉随后的 click
+        var lastTouchAt = 0;       // 最近一次触摸开始时间
+        var touchTimer = null;
+        var longPressHandled = false;
 
         boardEl.addEventListener('click', function (e) {
+            // 长按刚插过旗，忽略紧随其后的 click
             if (Date.now() - lastLongPress < 600) return;
+
             var el = e.target.closest('.cell');
             if (!el) return;
-            handleLeft(+el.dataset.r, +el.dataset.c);
+
+            var r = +el.dataset.r, c = +el.dataset.c;
+
+            if (mode === 'flag') {
+                handleRight(r, c);      // 插旗模式：点击 = 插旗 / 取消旗
+            } else {
+                handleLeft(r, c);       // 翻开模式：点击 = 翻开
+            }
         });
 
         boardEl.addEventListener('contextmenu', function (e) {
             e.preventDefault();
             var el = e.target.closest('.cell');
             if (!el) return;
+
+            // 触摸长按也会触发 contextmenu，避免重复插旗
+            if (Date.now() - lastTouchAt < 1200) {
+                clearTimeout(touchTimer);
+                if (longPressHandled) return;   // 长按定时器已处理过
+                longPressHandled = true;
+                lastLongPress = Date.now();
+            }
             handleRight(+el.dataset.r, +el.dataset.c);
         });
 
@@ -587,13 +648,17 @@
             handleChord(+el.dataset.r, +el.dataset.c);
         });
 
-        /* 移动端长按插旗 */
-        var touchTimer = null;
+        /* 移动端长按插旗（作为按钮之外的快捷方式保留） */
         boardEl.addEventListener('touchstart', function (e) {
             var el = e.target.closest('.cell');
             if (!el) return;
+
+            lastTouchAt = Date.now();
+            longPressHandled = false;
             clearTimeout(touchTimer);
+
             touchTimer = setTimeout(function () {
+                longPressHandled = true;
                 lastLongPress = Date.now();
                 handleRight(+el.dataset.r, +el.dataset.c);
                 if (navigator.vibrate) navigator.vibrate(15);
@@ -607,7 +672,17 @@
             clearTimeout(touchTimer);
         }, { passive: true });
 
-        /* 按钮 */
+        /* 模式按钮 */
+        var modeBtns = modesEl.querySelectorAll('button');
+        for (var m = 0; m < modeBtns.length; m++) {
+            (function (btn) {
+                btn.addEventListener('click', function () {
+                    setMode(btn.dataset.mode);
+                });
+            })(modeBtns[m]);
+        }
+
+        /* 重新开始 / 难度 */
         resetBtn.addEventListener('click', function () { init(currentLevel); });
 
         var levelBtns = document.querySelectorAll('.levels button');
@@ -623,6 +698,7 @@
 
         /* ============ 启动 ============ */
         init('easy');
+        setMode('reveal');
     })();
 </script>
 </body>
