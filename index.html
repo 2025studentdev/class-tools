@@ -2,16 +2,49 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light dark">
-    <title>高考倒计时</title>
+    <meta name="robots" content="noindex, nofollow">
+    <title>课程表与倒计时</title>
     <style>
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-        :root{--accent:#1FCCCD;--fg:#111;--muted:#5b6b6b;--bg:#fff;--pad:clamp(16px,4.5vw,32px)}
-        @media (prefers-color-scheme:dark){:root{--fg:#eaf7f7;--muted:#93a3a3;--bg:#0d1112}}
+        :root{
+            --accent:#1FCCCD;
+            --fg:#111;
+            --muted:#5b6b6b;
+            --bg:#f4f4f9;
+            --card-bg:#fff;
+            --border:#333;
+        }
+        @media (prefers-color-scheme:dark){
+            :root{
+                --fg:#eaf7f7;
+                --muted:#93a3a3;
+                --bg:#0d1112;
+                --card-bg:#1a1a1a;
+                --border:#555;
+            }
+        }
         html{-webkit-text-size-adjust:100%}
-        body{min-height:100dvh;display:grid;place-items:center;padding:clamp(12px,4vw,32px);background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue','PingFang SC','Microsoft YaHei',sans-serif;line-height:1.4;transition:background-color .3s,color .3s}
-        .card{width:min(100%,640px);border:1px solid var(--accent);padding:var(--pad)}
+        body{
+            min-height:100dvh;
+            padding:clamp(12px,4vw,32px);
+            background:var(--bg);
+            color:var(--fg);
+            font-family:system-ui,-apple-system,'Segoe UI',Roboto,'PingFang SC','Microsoft YaHei',sans-serif;
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            gap:clamp(20px,5vw,40px);
+            transition:background-color .3s,color .3s;
+        }
+        .countdown-card{
+            width:min(100%,640px);
+            background:var(--card-bg);
+            border:1px solid var(--accent);
+            padding:clamp(16px,4.5vw,32px);
+            box-shadow:0 4px 12px rgba(0,0,0,0.05);
+        }
         .label{font-size:clamp(12px,2.6vw,15px);font-weight:700;color:var(--accent);letter-spacing:.08em}
         .sub{margin-top:.4em;font-size:clamp(10px,2.2vw,13px);color:var(--muted);font-weight:500}
         .countdown{margin-top:clamp(14px,4vw,26px);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(4px,1.5vw,14px)}
@@ -21,10 +54,33 @@
         @media (max-width:320px){.countdown{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:14px}.num{font-size:clamp(30px,14vw,44px)}}
         @media (prefers-reduced-motion:no-preference){.is-done .num{animation:breathe 1.8s ease-in-out infinite}}
         @keyframes breathe{50%{opacity:.45}}
+        .schedule-wrapper{
+            width:100%;
+            max-width:1000px;
+            overflow-x:auto;
+            background:var(--card-bg);
+            border-radius:4px;
+            box-shadow:0 4px 12px rgba(0,0,0,0.05);
+        }
+        table{
+            width:100%;
+            border-collapse:collapse;
+            text-align:center;
+            font-size:clamp(12px,2.5vw,16px);
+            white-space:nowrap;
+        }
+        th,td{
+            border:1px solid var(--border);
+            padding:clamp(8px,2vw,14px) clamp(4px,1.5vw,12px);
+            color:var(--fg);
+        }
+        th{font-weight:bold;background-color:rgba(31,204,205,0.1)}
+        td:nth-child(1){font-weight:bold;width:clamp(30px,6vw,50px);line-height:1.3}
+        td:nth-child(2){font-weight:bold;width:clamp(50px,10vw,80px)}
     </style>
 </head>
 <body>
-<main class="card">
+<main class="countdown-card">
     <h1 class="label">高考倒计时</h1>
     <p class="sub" id="hint">距离高考还有</p>
     <div class="countdown" role="timer" aria-live="off">
@@ -34,10 +90,112 @@
         <div class="unit"><span class="num" id="s">--</span><span class="unit-label">秒</span></div>
     </div>
 </main>
+
+<div class="schedule-wrapper">
+    <table>
+        <thead>
+        <tr>
+            <th colspan="2"></th>
+            <th>星期一</th>
+            <th>星期二</th>
+            <th>星期三</th>
+            <th>星期四</th>
+            <th>星期五</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td rowspan="4">上<br>午</td>
+            <td>第1节</td>
+            <td>数学</td>
+            <td>语文</td>
+            <td>化学</td>
+            <td>化学</td>
+            <td>数学</td>
+        </tr>
+        <tr>
+            <td>第2节</td>
+            <td>物理</td>
+            <td>语文</td>
+            <td>语文</td>
+            <td>语文</td>
+            <td>语文</td>
+        </tr>
+        <tr>
+            <td>第3节</td>
+            <td>英语</td>
+            <td>数学</td>
+            <td>地理</td>
+            <td>音乐</td>
+            <td>英语</td>
+        </tr>
+        <tr>
+            <td>第4节</td>
+            <td>英语</td>
+            <td>英语</td>
+            <td>英语</td>
+            <td>体育</td>
+            <td>化学</td>
+        </tr>
+        <tr>
+            <td rowspan="4">下<br>午</td>
+            <td>第5节</td>
+            <td>历史</td>
+            <td>物理</td>
+            <td>生物</td>
+            <td>数学</td>
+            <td>地理</td>
+        </tr>
+        <tr>
+            <td>第6节</td>
+            <td>语文</td>
+            <td>历史</td>
+            <td>体育</td>
+            <td>数学</td>
+            <td>生物</td>
+        </tr>
+        <tr>
+            <td>第7节</td>
+            <td>政治</td>
+            <td>生物</td>
+            <td>物理</td>
+            <td>英语</td>
+            <td>政治</td>
+        </tr>
+        <tr>
+            <td>第8节</td>
+            <td>班会</td>
+            <td>社团</td>
+            <td>数学</td>
+            <td>信息</td>
+            <td>物理</td>
+        </tr>
+        <tr>
+            <td rowspan="2">晚<br>辅</td>
+            <td>第1节</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>第2节</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
 <script>
-    (()=>{const T=new Date(2029,5,7,0,0,0,0).getTime(),D=86400,H=3600,M=60,
-        e={d:document.getElementById('d'),h:document.getElementById('h'),m:document.getElementById('m'),s:document.getElementById('s'),hint:document.getElementById('hint'),card:document.querySelector('.card')},
-        p=(n,l)=>String(n).padStart(l,'0'),st=(el,t)=>{if(el.textContent!==t)el.textContent=t};
+    (()=>{
+        const T=new Date(2029,5,7,0,0,0,0).getTime(),D=86400,H=3600,M=60,
+            e={d:document.getElementById('d'),h:document.getElementById('h'),m:document.getElementById('m'),s:document.getElementById('s'),hint:document.getElementById('hint'),card:document.querySelector('.countdown-card')},
+            p=(n,l)=>String(n).padStart(l,'0'),st=(el,t)=>{if(el.textContent!==t)el.textContent=t};
         let raf=null,last=-1,fin=false;
         function rnd(t){st(e.d,p(Math.floor(t/D),3));st(e.h,p(Math.floor(t%D/H),2));st(e.m,p(Math.floor(t%H/M),2));st(e.s,p(t%M,2))}
         function stop(){if(raf!==null){cancelAnimationFrame(raf);raf=null}}
@@ -45,7 +203,8 @@
         function frame(){const r=T-Date.now();if(r<=0){fini();return}const s=Math.floor(r/1000);if(s!==last){last=s;rnd(s)}raf=requestAnimationFrame(frame)}
         function start(){if(fin)return;stop();last=-1;raf=requestAnimationFrame(frame)}
         document.addEventListener('visibilitychange',()=>{if(!document.hidden)start()});
-        start()})();
+        start()
+    })();
 </script>
 </body>
 </html>
